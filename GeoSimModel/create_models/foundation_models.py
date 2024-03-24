@@ -1,4 +1,4 @@
-from .geology_models import CreateMaterial
+from geotechnical_solutions.GeoSimModel.create_models.geology_models import CreateMaterial
 
 
 class CreatePlate(CreateMaterial):

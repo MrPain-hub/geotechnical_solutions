@@ -4,12 +4,7 @@ from . import create_models
 from . import solve
 from . import visualization
 
-path_data = os.getcwd() + "\\data"
+# Получаем абсолютный путь к текущему файлу
+current_file_path = os.path.abspath(__file__)
 
-
-def main():
-    pass
-
-
-if __name__ == "__main__":
-    main()
+path_data = os.path.dirname(current_file_path) + "/data/"

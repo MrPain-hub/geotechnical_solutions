@@ -1,3 +1,5 @@
+#from geotechnical_solutions.GeoSimModel import path_data
+
 class LayerSumMethod:
     """
     Расчет МПС
