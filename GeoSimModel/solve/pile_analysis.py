@@ -50,10 +50,10 @@ class PileBearingCapacity:
         """
         Чтение таблиц из СП
         """
-        self.df_f = pd.read_excel(path + "data\\f_table.xlsx")
-        self.df_R = pd.read_excel(path + "data\\R_table.xlsx")
+        self.df_f = pd.read_excel(path + "f_table.xlsx")
+        self.df_R = pd.read_excel(path + "R_table.xlsx")
 
-        self.df_gamma = pd.read_excel(path + "data\\gamma_table.xlsx", usecols="C:F")
+        self.df_gamma = pd.read_excel(path + "gamma_table.xlsx", usecols="C:F")
         self.df_gamma = self.df_gamma.applymap(lambda x: float(x.replace(",", ".")) if type(x) == str else x)
 
     def __interpolation__(self, df, value_i, value_j, rows=None, columns=None):
@@ -151,7 +151,7 @@ class PileBearingCapacity:
 
         method = self.Pile["driving_method"]
         option = self.Pile["driving_option"]
-        gamma_rr = self.df_gamma.query(f"method == @method and option == @option")["gamma_rr"]
+        gamma_rr = self.df_gamma.query(f"method == @method and option == @option")["gamma_rr"].mean()
 
         A = self.Pile.get("A")
         if A is None:
@@ -170,7 +170,7 @@ class PileBearingCapacity:
 
         method = self.Pile["driving_method"]
         option = self.Pile["driving_option"]
-        gamma_rf = self.df_gamma.query(f"method == @method and option == @option")["gamma_rf"]  # Необходимо определять для каждого слоя
+        gamma_rf = self.df_gamma.query(f"method == @method and option == @option")["gamma_rf"].mean()  # Необходимо определять для каждого слоя
         Fd_side = 0
 
         rows = list(self.df_f["h"])
@@ -226,70 +226,3 @@ class PileBearingCapacity:
 
         return self.Fd_under + self.Fd_side
 
-
-def main():
-    #from .create_models.geology_models import *
-    #from .create_models.foundation_models import *
-    #from CreateModels import *
-    from . import data
-    """
-    Входные данные
-    """
-    counts_ige = 3
-    dict_ige = {}
-    dict_soil = {}
-    for i in range(counts_ige):
-        dict_ige[f"ige{i + 1}"] = 0
-        dict_soil[f"soil{i}"] = f"ige{i + 1}"
-
-    IL = [.3, .4, .5]
-    gamma = [10e3, 18e3, 18e3]
-    soils_kind = ["sand", "clay", "clay"]
-    z_soils = [50, 40, 30, 0]
-
-    """
-    Создание материалов
-    """
-    for i, ige in enumerate(dict_ige):
-        dict_ige[ige] = CreateMaterial()
-        dict_ige[ige].data["IL"] = IL[i]
-        dict_ige[ige].data["kind"] = soils_kind[i]
-
-    """
-    Создание скважины
-    """
-    Borehole_1 = CreateBorehole(0, 0)
-
-    """
-    Создание слоев в скважине
-    """
-    for i, soil in enumerate(dict_soil):
-        Borehole_1.createSoil(bot=z_soils[i + 1],
-                              material=dict_ige[dict_soil[soil]]
-                              )
-    Borehole_1.change[0][0].change["Top"] = z_soils[0]
-    Borehole_1.change[0][0].change["h_soil"] = z_soils[0] - z_soils[1]
-
-    """
-    Создание сваи
-    """
-    Pile = CreatePile(profile="circle",
-                      D=2,
-                      length=10,
-                      z=40,
-                      driving_method=1,
-                      driving_option=1
-                      )
-
-    """
-    Вычисление Fd
-    """
-    class_Fd = PileBearingCapacity(Borehole=Borehole_1,
-                                   Pile=Pile
-                                   )
-    print(class_Fd.get_Fd_under())
-    print(class_Fd.get_Fd_side())
-    print(class_Fd.get_Fd())
-
-if __name__ == "__main__":
-    main()
