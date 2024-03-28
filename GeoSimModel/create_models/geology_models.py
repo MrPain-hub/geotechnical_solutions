@@ -1,3 +1,10 @@
+"""
+Содержит классы для создания:
+    *CreateMaterial - Материал грунта, содержит физ.мех. св-ва ИГЭ
+    *Soil - Слой в скважине, содержит геометрические св-ва ИГЭ
+    *CreateBorehole - Скважина, класс для формирования последовательности залегания слоев
+"""
+
 class CreateMaterial:
     """
     Класс создания материала
@@ -127,67 +134,6 @@ class CreateBorehole(CreateMaterial):
         Удалить конкретный слой
         """
         del self.data[name]
-
-
-class CreateLoad(CreateMaterial):
-    """
-    Создание нагрузки
-        Унаследовал method change:
-            - CreateLoad.change                   # return data
-            - CreateLoad.change = [key, value]    # data[key] = value
-            - del CreateLoad.change               # data = __def_data
-    """
-    def __init__(self, Type="P", load=1):
-        self.__def_data = {"Type": Type,
-                           "load": load,
-                           "length": None,
-                           "width": None
-                           }
-        self.data = self.__def_data
-
-
-class CreatePlate(CreateMaterial):
-    """
-    Создание плиты
-        Унаследовал method change:
-            - CreatePlate.change                   # return data
-            - CreatePlate.change = [key, value]    # data[key] = value
-            - del CreatePlate.change               # data = __def_data
-    """
-    def __init__(self, Type="rectangular", diameter=None, length=10, width=10, thicknes=1, gamma=None, FL=None, Load=[]):
-        self.__def_data = {"Type": Type,
-                           "d": diameter,
-                           "length": length,
-                           "width": width,
-                           "thickness": thicknes,
-                           "gamma": gamma,
-                           "FL": FL,
-                           "Load": Load}
-        self.data = self.__def_data
-
-    def addLoads(self, *load):
-        """
-        Добавить классы нагрузок
-        """
-        self.data["Load"].extend(load)
-
-    def delLoads(self):
-        """
-        Удалить все нагрузки
-        """
-        self.data["Load"] = []
-
-
-class CreatePile(CreateMaterial):
-    """
-    Создание сваи
-        Унаследовал method change:
-            - CreatePile.change                   # return data
-            - CreatePile.change = [key, value]    # data[key] = value
-            - del CreatePile.change               # data = __def_data
-    """
-    def __init__(self, **kwargs):
-        self.data = kwargs
 
 
 if __name__ == "__main__":

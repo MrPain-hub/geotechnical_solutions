@@ -15,10 +15,10 @@ for i in range(counts_ige):
     dict_ige[f"ige{i + 1}"] = 0
     dict_soil[f"soil{i}"] = f"ige{i + 1}"
 
-IL = [.3, .4, .5]
+IL = [.66, .3, .43]
 gamma = [10e3, 18e3, 18e3]
-soils_kind = ["sand", "clay", "clay"]
-z_soils = [50, 40, 30, 0]
+soils_kind = ["clay", "sand", "clay"]
+z_soils = [0, -10, -15, -50]
 
 """
 Создание материалов
@@ -47,9 +47,9 @@ Borehole_1.change[0][0].change["h_soil"] = z_soils[0] - z_soils[1]
 Создание сваи
 """
 Pile = CreatePile(profile="circle",
-                  D=2,
-                  length=10,
-                  z=40,
+                  D=1,
+                  length=30,
+                  z=0,
                   driving_method=1,
                   driving_option=1
                   )
@@ -59,9 +59,10 @@ Pile = CreatePile(profile="circle",
 """
 class_Fd = PileBearingCapacity(Borehole=Borehole_1,
                                Pile=Pile,
-                               path_data=path_data
+                               path_data=path_data,
+                               hi = 1
                                )
 
-print(class_Fd.get_Fd_under())
-print(class_Fd.get_Fd_side())
-print(class_Fd.get_Fd())
+print("несущая способность от пяты сваи", class_Fd.get_Fd_under())
+print("несущая способность от боковой поверхности", class_Fd.get_Fd_side())
+print("суммарная несущая способность", class_Fd.get_Fd())

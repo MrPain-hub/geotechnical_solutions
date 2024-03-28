@@ -44,7 +44,7 @@ class PileBearingCapacity:
             layer, material = item
             if self.z_heel <= layer.data["Top"]:
                 self.soil_heel = item
-                break
+                #break
 
     def __read_table__(self, path):
         """
@@ -95,6 +95,7 @@ class PileBearingCapacity:
         """
         ind_i1, ind_i2 = detected_index(rows, value_i)
         ind_j1, ind_j2 = detected_index(columns, value_j)
+
 
         """
         Получить значения соседей по индексам
@@ -149,6 +150,7 @@ class PileBearingCapacity:
                                    list(map(float, df_R.columns[1:8]))
                                  )
 
+
         method = self.Pile["driving_method"]
         option = self.Pile["driving_option"]
         gamma_rr = self.df_gamma.query(f"method == @method and option == @option")["gamma_rr"].mean()
@@ -178,12 +180,12 @@ class PileBearingCapacity:
         df_f = self.df_f.loc[:, columns]
         columns = list(map(float, columns))
 
-
+        z_pile = self.Pile["z"]
 
         for num, soil in self.Borehole.data.items():
-            z_pile = self.Pile["z"]
             soil_top = soil[0].data["Top"]
             soil_bot = soil[0].data["Bot"]
+
 
             IL = soil[1].data["IL"]
 
@@ -199,7 +201,7 @@ class PileBearingCapacity:
                     """
                     Считать все слои кратные hi_step
                     """
-                    fi = self.__interpolation__(df_f, self.hi_step, IL, rows, columns)
+                    fi = self.__interpolation__(df_f, (z_pile - z_top) + self.hi_step/2, IL, rows, columns)
                     Fd_side += gamma_rf * fi * self.hi_step
                     z_top -= self.hi_step
 
@@ -208,7 +210,7 @@ class PileBearingCapacity:
                     Если расстояние между (z_top; z_bot) < hi_step
                     То учесть этот слой
                     """
-                    fi = self.__interpolation__(df_f, z_top - z_bot, IL, rows, columns)
+                    fi = self.__interpolation__(df_f, (z_pile - z_top) + (z_top - z_bot)/2, IL, rows, columns)
                     Fd_side += gamma_rf * fi * (z_top - z_bot)
 
         return self.gamma_c * P * Fd_side
