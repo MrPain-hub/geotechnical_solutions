@@ -60,7 +60,7 @@ Pile = CreatePile(profile="circle",
 class_Fd = PileBearingCapacity(Borehole=Borehole_1,
                                Pile=Pile,
                                path_data=path_data,
-                               hi = 1
+                               hi=1
                                )
 
 print("несущая способность от пяты сваи", class_Fd.get_Fd_under())
