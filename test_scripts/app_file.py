@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 import tkinter as tk
+import tkinter.font as tkFont
 from tkinter import ttk
 
 from datetime import date, datetime, timedelta
@@ -13,6 +14,8 @@ from geotechnical_solutions.GeoSimModel.create_models.geology_models import *
 from geotechnical_solutions.GeoSimModel.create_models.foundation_models import *
 from geotechnical_solutions.GeoSimModel.solve.building_analysis import *
 from geotechnical_solutions.GeoSimModel import path_data
+
+from app_borehole import SoilLayerApp, WindowCreateMaterial
 
 class MainWindow(ttk.Frame):
     """
@@ -27,14 +30,17 @@ class MainWindow(ttk.Frame):
         self.__add_menu(self.root)
 
         # Создание фреймов
-        self.frame_win1 = tk.LabelFrame(self.root, text="Исходные данные", relief="raised", fg="white", bg="green")
-        self.frame_win2 = tk.LabelFrame(self.root, text="Расчеты", relief="raised", fg="white", bg="black")
+        #self.frame_win1 = tk.LabelFrame(self.root, text="Исходные данные", relief="raised", fg="white", bg="green")
+        self.frame_win2 = tk.LabelFrame(self.root, text="Расчеты", relief="flat", bg="#D3D3D3")
+        self.frame_win1 = ttk.Frame(self.root)
 
         self.frame_win1.pack(side="left", fill='both', padx=10, pady=10)
         self.frame_win2.pack(side="right", fill='both', padx=10, pady=10)
 
-        ttk.Button(self.frame_win1, text="Создание скважины", command=self.create_borehole).pack(fill='both')
-        ttk.Button(self.frame_win1, text="Создание ИГЭ", command=self.create_material).pack(fill='both')
+        #ttk.Button(self.frame_win1, text="Создание скважины", command=self.create_borehole).pack(fill='both')
+        #ttk.Button(self.frame_win1, text="Создание ИГЭ", command=self.create_material).pack(fill='both')
+
+        SoilLayerApp(self.frame_win1)
 
         ttk.Button(self.frame_win2, text="Метод Послойного Суммирования", command=self.open_LSM).pack(fill='both')
         ttk.Button(self.frame_win2, text="Расчет несущей способности висячих свай", command=self.open_piles).pack(fill='both')
@@ -105,7 +111,8 @@ class MainWindow(ttk.Frame):
         window.config(menu=self.menu_bar)
 
     def create_borehole(self):
-        WindowCreateBorehole(tk.Toplevel(self.root))
+        SoilLayerApp(tk.Toplevel(self.root))
+        #WindowCreateBorehole(tk.Toplevel(self.root))
 
     def create_material(self):
         WindowCreateMaterial(tk.Toplevel(self.root))
@@ -146,41 +153,41 @@ class WindowCreateBorehole(ttk.Frame):
                 entry.grid(row=i+1, column=j)
 
 
-class WindowCreateMaterial(ttk.Frame):
-    """
-    Окно создания материала
-    """
-    def __init__(self, root=None):
-        super().__init__(root)
-        self.root = root
-        self.root.title("Добавление ИГЭ")
-
-        frame1 = ttk.Frame(self.root)
-        frame2 = tk.LabelFrame(self.root, text="Уровень воды")
-
-        frame1.pack()
-        frame2.pack()
-
-        ttk.Label(frame1, text="E [Па]").grid(row=0, column=0)
-        ttk.Label(frame1, text="gamma").grid(row=1, column=0)
-        ttk.Label(frame1, text="Z [м]").grid(row=2, column=0)
-
-        material_list = []
-
-        for i in range(3):
-            entry = ttk.Entry(frame1, width=10)
-            entry.insert(0, f"{i}")
-            entry.grid(row=i, column=1)
-            material_list.append(entry.get())
-
-        ttk.Label(frame2, text="water").grid(row=0, column=0)
-        for i in range(2):
-            entry = ttk.Entry(frame2, width=5)
-            entry.insert(0, f"{i}")
-            entry.grid(row=0, column=i+1)
-            material_list.append(entry.get())
-
-        print(material_list)
+# class WindowCreateMaterial(ttk.Frame):
+#     """
+#     Окно создания материала
+#     """
+#     def __init__(self, root=None):
+#         super().__init__(root)
+#         self.root = root
+#         self.root.title("Добавление ИГЭ")
+#
+#         frame1 = ttk.Frame(self.root)
+#         frame2 = tk.LabelFrame(self.root, text="Уровень воды")
+#
+#         frame1.pack()
+#         frame2.pack()
+#
+#         ttk.Label(frame1, text="E [Па]").grid(row=0, column=0)
+#         ttk.Label(frame1, text="gamma").grid(row=1, column=0)
+#         ttk.Label(frame1, text="Z [м]").grid(row=2, column=0)
+#
+#         material_list = []
+#
+#         for i in range(3):
+#             entry = ttk.Entry(frame1, width=10)
+#             entry.insert(0, f"{i}")
+#             entry.grid(row=i, column=1)
+#             material_list.append(entry.get())
+#
+#         ttk.Label(frame2, text="water").grid(row=0, column=0)
+#         for i in range(2):
+#             entry = ttk.Entry(frame2, width=5)
+#             entry.insert(0, f"{i}")
+#             entry.grid(row=0, column=i+1)
+#             material_list.append(entry.get())
+#
+#         print(material_list)
 
 
 class WindowPiles(ttk.Frame):
@@ -275,8 +282,115 @@ class WindowLSM(ttk.Frame):
         fig.savefig("last_plot.png")
 
 
+# class SoilLayerApp(ttk.Frame):
+#     """
+#     Созадние скважины и присваивание слоев
+#     """
+#     def __init__(self, root=None):
+#         super().__init__(root)
+#         self.root = root
+#         self.root.title("Изменение слоев грунта")
+#
+#         # Список материалов для combobox
+#         self.materials = ["Clay", "Sand", "Gravel", "Silt", "Rock"]
+#
+#         # Создаем Notebook (вкладки)
+#         self.notebook = ttk.Notebook(self.root)
+#         self.notebook.pack(padx=10, pady=10, fill='both', expand=True)
+#
+#         # Вкладка Soil Layers
+#         self.soil_frame = ttk.Frame(self.notebook)
+#         self.notebook.add(self.soil_frame, text="Слой грунта")
+#
+#         # Вкладка Water
+#         self.water_frame = ttk.Frame(self.notebook)
+#         self.notebook.add(self.water_frame, text="Вода")
+#
+#         # Создаем Canvas для отображения таблицы и виджетов
+#         self.canvas = tk.Canvas(self.soil_frame)
+#         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+#
+#         # Создаем Scrollbar для таблицы
+#         self.scrollbar = ttk.Scrollbar(self.soil_frame, orient=tk.VERTICAL, command=self.canvas.yview)
+#         self.scrollbar.pack(side=tk.LEFT, fill=tk.Y)
+#
+#         self.canvas.configure(yscrollcommand=self.scrollbar.set)
+#         self.canvas.bind('<Configure>', lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+#
+#         # Внутренний Frame для размещения виджетов
+#         self.table_frame = ttk.Frame(self.canvas)
+#         self.canvas.create_window((0, 0), window=self.table_frame, anchor="nw")
+#
+#         # Заголовки колонок
+#         headers = ["Material", "Top", "Bottom"]
+#         for idx, text in enumerate(headers):
+#             label = ttk.Label(self.table_frame, text=text, font=('Arial', 10, 'bold'))
+#             label.grid(row=0, column=idx, padx=10, pady=5)
+#
+#         # Контейнер для кнопок
+#         button_frame = ttk.Frame(self.soil_frame)
+#         button_frame.pack(side=tk.LEFT, padx=10, fill=tk.Y)
+#
+#         # Кнопка для добавления новой строки
+#         self.add_button = ttk.Button(button_frame, text="Add", command=self.add_row)
+#         self.add_button.pack(pady=5)
+#
+#         # Кнопка для удаления выбранной строки
+#         self.delete_button = ttk.Button(button_frame, text="Delete", command=self.delete_row)
+#         self.delete_button.pack(pady=5)
+#
+#         # Список для хранения созданных combobox
+#         self.comboboxes = []
+#         self.rows = []  # Список для хранения идентификаторов строк
+#
+#         # Добавляем начальные строки
+#         self.add_row()
+#         self.add_row()
+#
+#     def add_row(self):
+#         """
+#         Добавляем новую строку с combobox и значениями по умолчанию
+#         """
+#         row = len(self.comboboxes) + 1  # Номер строки
+#
+#         # Combobox для Material
+#         combobox = ttk.Combobox(self.table_frame, values=self.materials)
+#         combobox.set("<not assigned>")  # Значение по умолчанию
+#         combobox.grid(row=row, column=0, padx=10, pady=5)
+#         self.comboboxes.append(combobox)
+#
+#         # Ячейки для Top и Bottom (Label для простоты)
+#         top_label = ttk.Label(self.table_frame, text="0.000")
+#         bottom_label = ttk.Label(self.table_frame, text="0.000")
+#         top_label.grid(row=row, column=1, padx=10, pady=5)
+#         bottom_label.grid(row=row, column=2, padx=10, pady=5)
+#
+#         # Сохраняем данные строки
+#         self.rows.append((combobox, top_label, bottom_label))
+#
+#     def delete_row(self):
+#         """
+#         Удаляем последнюю строку
+#         """
+#         if self.comboboxes:
+#             # Удаляем последний combobox и соответствующие виджеты
+#             combobox = self.comboboxes.pop()
+#             combobox.grid_forget()
+#
+#             _, top_label, bottom_label = self.rows.pop()
+#             top_label.grid_forget()
+#             bottom_label.grid_forget()
+
+
 if __name__ == "__main__":
     root = tk.Tk()
+
+    """
+    Шрифт поумолчанию
+    """
+    default_font = tkFont.nametofont("TkDefaultFont")
+    default_font.configure(size=12, family="Segoe UI", weight="normal")
+
     app = MainWindow(root)
     root.mainloop()
     # app.grid(row=0, column=0)  # Add this line
