@@ -16,13 +16,15 @@ class WindowCreateMaterial(ttk.Frame):
         super().__init__(root)
         self.root = root
         self.root.title("Изменение св-в материала")
+        self.root.geometry('300x400')
 
         """
         Открытие данных
         """
         with open("materials.pickle", 'rb') as f:
             load_data = pickle.load(f)
-        self.materials = load_data.get("materials", ["Clay", "Sand", "Gravel", "Silt", "Rock"])
+        self.materials = load_data.get("name", ["Clay", "Sand", "Rock"])
+        self.properties = load_data.get("properties", None)
 
 
 
@@ -31,7 +33,7 @@ class WindowCreateMaterial(ttk.Frame):
         self.lframe_1.pack(fill='both')
 
         self.frame_1_1 = ttk.Frame(self.lframe_1)
-        self.frame_1_1.pack(fill='x')
+        self.frame_1_1.pack(anchor="s")
 
         ttk.Label(self.frame_1_1, text="Тип").grid(row=0, column=0)
 
@@ -39,6 +41,7 @@ class WindowCreateMaterial(ttk.Frame):
         variable.set("Грунт")  # установить значение по умолчанию
         type_menu = tk.OptionMenu(self.frame_1_1, variable, *["Грунт", "Плита", "Балка", "Свая"])
         type_menu.grid(row=0, column=1)
+        tk.Button(self.frame_1_1, bg='lightblue', text="Add", command=self.change_material).grid(row=0, column=2)
 
         self.frame_1_2 = ttk.Frame(self.lframe_1)
         self.frame_1_2.pack(fill='both')
@@ -52,19 +55,21 @@ class WindowCreateMaterial(ttk.Frame):
         pass
 
     def widget_soils(self, frame):
-        for i in range(len(self.materials)):
-            cell = tk.Button(frame, text=self.materials[i], relief="flat")
-            #cell.grid(row=i, column=0)
-            cell.pack(fill="both")
-            cell.bind("<Double-Button-1>", lambda e, x=i: self.change_material(e, x))
 
-    def change_material(self, event, soil=None):
+        for i in range(len(self.materials)):
+            cell = ttk.Button(frame, text=self.materials[i])
+            cell.pack(fill="both", padx=0, pady=0)
+            cell.bind("<Button-1>", lambda e, soil=self.materials[i]: self.change_material(e, soil))
+            #cell.bind("<Double-Button-1>", lambda e, x=i: self.change_material(e, x))
+
+    def change_material(self, event=None, soil=None):
 
         def close_win():
             new_window.destroy()
 
         def save_win():
             new_window.destroy()
+
 
         new_window = tk.Toplevel(self.root, bg="#87CEEB")
         new_window.grab_set()
@@ -82,20 +87,35 @@ class WindowCreateMaterial(ttk.Frame):
                            ["Угол внутреннего трения", "fi"]
                            ]
 
+        soil_properties = self.properties.get(soil, [0, 0, 0, 0, 0])
         change_list = []
-        for i in range(len(label_text_list)):
+
+        ttk.Label(frame_1, text="").grid(row=0, column=0)
+        ttk.Label(frame_1, text="Название").grid(row=0, column=1)
+        entry = ttk.Entry(frame_1, width=10)
+        if soil is None:
+            entry.insert(0, "new_soil")
+        else:
+            entry.insert(0, soil)
+        entry.grid(row=0, column=2)
+
+        for i in range(1, len(label_text_list)):
             ttk.Label(frame_1, text=label_text_list[i][0]).grid(row=i, column=0)
             ttk.Label(frame_1, text=label_text_list[i][1]).grid(row=i, column=1)
             entry = ttk.Entry(frame_1, width=10)
-            entry.insert(0, f"{i}")
+            entry.insert(0, soil_properties[i-1])
             entry.grid(row=i, column=2)
             change_list.append(entry.get())
 
-        if soil is None:
-            pass
-
         ttk.Button(frame_2, text="Отмена", command=close_win).pack(side="left", fill="x")
-        ttk.Button(frame_2, text="Сохранить", command=close_win).pack(side="right", fill="x")
+        ttk.Button(frame_2, text="Сохранить", command=save_win).pack(side="right", fill="x")
+
+        if soil is None:
+            self.materials.append("new_soil")
+            self.frame_1_2.destroy()
+            self.frame_1_2 = ttk.Frame(self.lframe_1)
+            self.frame_1_2.pack(fill='both')
+            self.widget_soils(self.frame_1_2)
 
 
 class SoilLayerApp(ttk.Frame):
