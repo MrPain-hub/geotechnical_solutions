@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 import tkinter.font as tkFont
 from tkinter import ttk
 
@@ -17,6 +18,8 @@ class WindowCreateMaterial(ttk.Frame):
         self.root = root
         self.root.title("Изменение св-в материала")
         self.root.geometry('300x400')
+        self.root.focus_force()
+        self.root.grab_set()    # для фокуса на этом окне
 
         """
         Открытие данных
@@ -25,8 +28,6 @@ class WindowCreateMaterial(ttk.Frame):
             load_data = pickle.load(f)
         self.materials = load_data.get("name", ["Clay", "Sand", "Rock"])
         self.properties = load_data.get("properties", None)
-
-
 
         ttk.Button(self.root, text="База материалов", command=self.show_global_material).pack()
         self.lframe_1 = tk.LabelFrame(self.root, text="Все материалы")
@@ -45,8 +46,14 @@ class WindowCreateMaterial(ttk.Frame):
 
         self.frame_1_2 = ttk.Frame(self.lframe_1)
         self.frame_1_2.pack(fill='both')
-
         self.widget_soils(self.frame_1_2)
+
+    def save_properties(self):
+        data_pickle = {"name": self.materials,
+                       "properties": self.properties,
+                       }
+        with open("materials.pickle", 'wb') as f:
+            pickle.dump(data_pickle, f)
 
     def show_global_material(self):
         pass
@@ -64,11 +71,33 @@ class WindowCreateMaterial(ttk.Frame):
 
     def change_material(self, event=None, soil=None):
 
-        def close_win():
-            new_window.destroy()
+        def update_frame_materials():
+            self.frame_1_2.destroy()
+            self.frame_1_2 = ttk.Frame(self.lframe_1)
+            self.frame_1_2.pack(fill='both')
+            self.widget_soils(self.frame_1_2)
+            self.root.grab_set()  # для фокуса на этом окне
+
+        def del_win(soil):
+            response = messagebox.askquestion("Выбор действия", "Точно хотите удалить материал?", icon='warning')
+            if response == 'yes':
+                self.properties.pop(soil, 'Key not found')
+                self.materials = [word for word in self.materials if word != soil]
+                self.save_properties()
+                messagebox.showinfo("Удаление", "Материал удален.")
+                new_window.destroy()
+                update_frame_materials()
 
         def save_win():
+            soil = str(entry_properties_list[0].get())
+
+            if self.properties.get(soil, None) is None:
+                self.materials.append(soil)
+
+            self.properties[soil] = [float(str(entry.get())) for entry in entry_properties_list[1:]]
+            self.save_properties()
             new_window.destroy()
+            update_frame_materials()
 
 
         new_window = tk.Toplevel(self.root, bg="#87CEEB")
@@ -88,7 +117,7 @@ class WindowCreateMaterial(ttk.Frame):
                            ]
 
         soil_properties = self.properties.get(soil, [0, 0, 0, 0, 0])
-        change_list = []
+        entry_properties_list = []  # для записи фрэймов содержащие св-ва грунта, из которых извлекать значения
 
         ttk.Label(frame_1, text="").grid(row=0, column=0)
         ttk.Label(frame_1, text="Название").grid(row=0, column=1)
@@ -98,6 +127,7 @@ class WindowCreateMaterial(ttk.Frame):
         else:
             entry.insert(0, soil)
         entry.grid(row=0, column=2)
+        entry_properties_list = [entry]
 
         for i in range(1, len(label_text_list)):
             ttk.Label(frame_1, text=label_text_list[i][0]).grid(row=i, column=0)
@@ -105,17 +135,10 @@ class WindowCreateMaterial(ttk.Frame):
             entry = ttk.Entry(frame_1, width=10)
             entry.insert(0, soil_properties[i-1])
             entry.grid(row=i, column=2)
-            change_list.append(entry.get())
+            entry_properties_list.append(entry)
 
-        ttk.Button(frame_2, text="Отмена", command=close_win).pack(side="left", fill="x")
+        ttk.Button(frame_2, text="Удалить", command=lambda x=soil: del_win(soil)).pack(side="left", fill="x")
         ttk.Button(frame_2, text="Сохранить", command=save_win).pack(side="right", fill="x")
-
-        if soil is None:
-            self.materials.append("new_soil")
-            self.frame_1_2.destroy()
-            self.frame_1_2 = ttk.Frame(self.lframe_1)
-            self.frame_1_2.pack(fill='both')
-            self.widget_soils(self.frame_1_2)
 
 
 class SoilLayerApp(ttk.Frame):
@@ -135,7 +158,7 @@ class SoilLayerApp(ttk.Frame):
         # Список материалов для combobox
         with open("materials.pickle", 'rb') as f:
             load_data = pickle.load(f)
-        self.materials = load_data.get("materials", ["Clay", "Sand", "Gravel", "Silt", "Rock"])
+        self.materials = load_data.get("name", ["Clay", "Sand", "Gravel"])
 
         # Создаем Notebook (вкладки)
         self.notebook = ttk.Notebook(self.labelframe)
@@ -212,6 +235,7 @@ class SoilLayerApp(ttk.Frame):
 
     def add_material(self):
         WindowCreateMaterial(tk.Toplevel(self.root))
+
 
     def update_plot(self):
         self.ax.clear()

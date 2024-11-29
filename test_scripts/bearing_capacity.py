@@ -2,7 +2,6 @@ from geotechnical_solutions.GeoSimModel.create_models.geology_models import *   
 from geotechnical_solutions.GeoSimModel.create_models.foundation_models import *    # Путь к классу для создания сваи
 
 from geotechnical_solutions.GeoSimModel.solve.pile_analysis import *    # Путь к классу для расчета несущей способности свай
-
 from geotechnical_solutions.GeoSimModel import path_data    # Получить путь к табличным данным СП (нужно для расчетов)
 
 """
