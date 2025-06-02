@@ -1,4 +1,6 @@
 #from geotechnical_solutions.GeoSimModel import path_data
+import numpy as np
+
 
 class LayerSumMethod:
     """
@@ -7,7 +9,7 @@ class LayerSumMethod:
     SP = 1 # СП83
     SP = 2 # СП2017
     """
-    def __init__(self, borehole, plate, load, type_found="прямоугольный", path_alpha="alpha_table.txt"):
+    def __init__(self, borehole, plate, load, type_found="прямоугольный", path_alpha="alpha.txt"):
         """
         :param borehole: инфо об ИГЭ
         :param plate: инфо об плите
@@ -23,7 +25,7 @@ class LayerSumMethod:
         self.SP = 2
         self.step = 0.4
         self.round_value = 2
-        self.alpha_dict = self.createDictAlpha(self.path_alpha)
+        self.matrix_alpha = self.__get_matrix_alpha(self.path_alpha)
 
     def setting(self, SP=2, step=0.4, round_value=2):
         """
@@ -42,66 +44,56 @@ class LayerSumMethod:
         """
         return round(value, self.round_value)
 
-    def createDictAlpha(self, url):
-        """
-        Считывание данных с txt в словарный вид
-        :param self:
-        :param url: ссылка на txt файл
-        :return: alpha_dict
-        """
-        alpha_dict = {}
-        nu_list = [1, 1.4, 1.8, 2.4, 3.2, 5, 10]
+    def __get_matrix_alpha(self, url):
+        matrix = []
+
         with open(url, "r", encoding="utf-8") as f:
             for row, text in enumerate(f.readlines()):
                 eps = round(0.4 * row, 1)
-                alpha_dict[eps] = {}
                 text_list = text.split()
-                for col, nu in enumerate(nu_list):
-                    alpha_dict[eps][nu] = float(text_list[col])
-        return alpha_dict
 
-    def detected_index(self, lst, value):
-        """
-        Определение левого и правого индекса для интерполяции
-        :param lst: Список значений
-        :param value: Значение
-        :return: (i_l, i_r) - соседние индексы value в lst
-        """
-        if value in lst:
-            return lst.index(value), lst.index(value)
-        i_l, i_r = 0, len(lst) - 1
-        for i in range(len(lst)):
-            if value > lst[i]:
-                i_l = i
-            else:
-                i_r = i
-                break
-        return i_l, i_r
+                text_list = list(map(lambda x: float(x.replace(',', '.')), text_list))
 
-    def interpolation(self, value_i, value_j, type_found="прямоугольный"):
-        """
-        Интерполяция по строке и столбцу
-        """
-        if type_found == "ленточный":
-            value_j = 10
-        data = self.alpha_dict
-        row = list(data.keys())
-        column = list(data[0].keys())   # [1, 1.4, 1.8, 2.4, 3.2, 5, 10]
-        ind_i1, ind_i2 = self.detected_index(row, value_i)
-        ind_j1, ind_j2 = self.detected_index(column, value_j)
-        i1, i2 = round(row[ind_i1], 1), round(row[ind_i2], 1)
-        j1, j2 = column[ind_j1], column[ind_j2]
-        if j1 == j2:
-            x1 = data[i1][j2]
-            x2 = data[i2][j2]
+                matrix.append(text_list)
+
+        return np.array(matrix)
+        self.matrix_alpha = np.array(matrix)
+
+    def interpol_alpha(self,
+                       eps,
+                       nu,
+                       type_found='прямоугольный'
+                      ):
+        matrix = self.matrix_alpha
+
+        eps_arr = matrix[:, 0]
+        left = np.where((eps_arr <= eps))[0][-1]
+        right = np.where((eps_arr >= eps))[0][0]
+
+        if left == right:
+            row_result = matrix[left, :]
+
         else:
-            x1 = (data[i1][j1] - data[i1][j2])/(column[ind_j1] - column[ind_j2]) * (value_j - column[ind_j2]) + data[i1][j2]
-            x2 = (data[i2][j1] - data[i2][j2])/(column[ind_j1] - column[ind_j2]) * (value_j - column[ind_j2]) + data[i2][j2]
-        if i1 == i2:
-            y = x2
-        else:
-            y = (x1 - x2)/(row[ind_i1] - row[ind_i2]) * (value_i - row[ind_i2]) + x2
-        return y
+            row_l = matrix[left, :]
+            row_r = matrix[right, :]
+
+            row_result = (row_r - row_l) / (row_r[0] - row_l[0]) * (eps - row_l[0]) + row_l
+
+        if type_found == 'круглый':
+            return row_result[1]
+
+        if nu >= 10 or type_found == 'ленточный':
+            return row_result[-1]
+
+        nu_arr = np.array([1, 1.4, 1.8, 2.4, 3.2, 5, 10])
+        left = np.where((nu_arr <= nu))[0][-1] + 2
+        right = np.where((nu_arr >= nu))[0][0] + 2
+
+        if nu_arr[left - 2] == nu_arr[right - 2]:
+            return row_result[left]
+
+        return (row_result[right] - row_result[left]) / (nu_arr[right - 2] - nu_arr[left - 2]) * (
+                    nu - nu_arr[left - 2]) + row_result[left]
 
     def calculation(self):
         if self.SP == 1:
@@ -137,11 +129,11 @@ class LayerSumMethod:
                 if len(water) != 0 and water[0] >= z_step >= water[1]:
                     w = 1   # активатор ВКЛ
                 sigma_zg += self.step * (gamma - 10 * w)
-                self.dataZ[z_step] = [i, sigma_zg, (Force - sigma_zg_0)]
+                self.dataZ[z_step] = [i, sigma_zg, (Force - sigma_zg_0), 1]
                 if z_step <= FL:
                     eps = 2 * (FL - z_step)/self.plate.change["width"]
-                    alpha = self.interpolation(eps, nu, type_found=self.type_found)
-                    self.dataZ[z_step] = [i, sigma_zg, (Force - sigma_zg_0) * alpha]
+                    alpha = self.interpol_alpha(eps, nu, type_found=self.type_found)
+                    self.dataZ[z_step] = [i, sigma_zg, (Force - sigma_zg_0) * alpha, alpha]
                 else:
                     sigma_zg_0 = sigma_zg   # Напряжение грунта выше подошвы фундамента
                 if self.check(z_step):
@@ -156,11 +148,11 @@ class LayerSumMethod:
             if len(water) != 0 and water[0] >= last_step >= water[1]:
                 w = 1   # активатор ВКЛ
             sigma_zg += last_step * (gamma - 10 * w)
-            self.dataZ[z_bot] = [i, sigma_zg, Force]
+            self.dataZ[z_bot] = [i, sigma_zg, Force, 1]
             if z_bot <= FL:
                 eps = 2 * (FL - z_bot)/self.plate.change["width"]
-                alpha = self.interpolation(eps, nu, type_found=self.type_found)
-                self.dataZ[z_bot] = [i, sigma_zg, Force * alpha]
+                alpha = self.interpol_alpha(eps, nu, type_found=self.type_found)
+                self.dataZ[z_bot] = [i, sigma_zg, Force * alpha, alpha]
             else:
                 sigma_zg_0 = sigma_zg   # Напряжение грунта выше подошвы фундамента
             if self.check(z_bot):
@@ -224,11 +216,11 @@ class LayerSumMethod:
             FL = self.plate.change["FL"]
 
             if z_now >= FL:  # Напряжение выше и на отметки фундамента остается без изменения
-                self.dataZ[z_now] = [i, sigma_zg, Force, sigma_zg_0]
+                self.dataZ[z_now] = [i, sigma_zg, Force, sigma_zg_0, 1]
             else:
                 eps = 2 * (FL - z_now) / self.plate.change["width"]
-                alpha = self.interpolation(eps, nu, type_found=self.type_found)
-                self.dataZ[z_now] = [i, sigma_zg, Force * alpha, sigma_zg_0 * alpha]
+                alpha = self.interpol_alpha(eps, nu, type_found=self.type_found)
+                self.dataZ[z_now] = [i, sigma_zg, Force * alpha, sigma_zg_0 * alpha, alpha]
 
 
         self.dataZ = {}
@@ -251,7 +243,7 @@ class LayerSumMethod:
                 sigma_zg_0 = sigma_zg  # Напряжение грунта выше подошвы фундамента
 
             if z_step == NL:
-                self.dataZ[z_step] = [i, sigma_zg, Force, sigma_zg_0]
+                self.dataZ[z_step] = [i, sigma_zg, Force, sigma_zg_0, 1]
                 z_step = z_step - self.rd(self.step)
 
             while z_step > z_bot:
@@ -288,7 +280,7 @@ class LayerSumMethod:
         """
         self.key_bot = True
 
-        nSoil, sigma_zg, sigma_zp, sigma_zy = self.dataZ[key]
+        nSoil, sigma_zg, sigma_zp, sigma_zy, alpha = self.dataZ[key]
         E = self.borehole.change[nSoil][1].change["E"]
 
         if E <= 7e6:
@@ -313,7 +305,7 @@ class LayerSumMethod:
         z_step = FL
         beta = 0.8
         self.settlement = 0
-        for z, (nSoil, sigma_zg, sigma_zp, sigm_zy) in self.dataZ.items():
+        for z, (nSoil, sigma_zg, sigma_zp, sigm_zy, alpha) in self.dataZ.items():
             if z <= FL:
                 hi = z_step - z
                 E = self.borehole.change[nSoil][1].change["E"]

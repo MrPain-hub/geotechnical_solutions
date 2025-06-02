@@ -68,7 +68,7 @@ Mps = LayerSumMethod(Borehole_1,
                      plate_1,
                      load_1,
                      type_found="ленточный",
-                     path_alpha = path_data+r"alpha_table.txt"
+                     path_alpha = path_data+r"alpha.txt"
                      )
 Mps.calculation()
 
@@ -81,14 +81,16 @@ depth = []
 sigx = []
 sigy = []
 sigz = []
+alpha_list = []
 
 print(result_dict[50])
 
 for key, item in result_dict.items():
-    _, x, y, z = item
+    _, x, y, z, alpha = item
     sigx.append(int(x/1000))
     sigy.append(int(y/1000))
     sigz.append(int(z/1000))
+    alpha_list.append(alpha)
     depth.append(float(key))
 
 
