@@ -1,5 +1,6 @@
 #from geotechnical_solutions.GeoSimModel import path_data
 import numpy as np
+from decimal import Decimal
 
 
 class LayerSumMethod:
@@ -9,7 +10,7 @@ class LayerSumMethod:
     SP = 1 # СП83
     SP = 2 # СП2017
     """
-    def __init__(self, borehole, plate, load, type_found="прямоугольный", path_alpha="alpha.txt"):
+    def __init__(self, borehole, plate, load, type_found="прямоугольный", path_alpha="alpha.txt", **kwargs):
         """
         :param borehole: инфо об ИГЭ
         :param plate: инфо об плите
@@ -26,6 +27,10 @@ class LayerSumMethod:
         self.step = 0.4
         self.round_value = 2
         self.matrix_alpha = self.__get_matrix_alpha(self.path_alpha)
+
+        # Если не указана отметка DL и вес грунта, то DL = NL
+        self.DL = kwargs.get('DL', self.borehole.change[0][0].change["Top"])
+        self.gamma_DL = kwargs.get('gamma_DL', self.borehole.change[0][1].change['gamma'])
 
     def setting(self, SP=2, step=0.4, round_value=2):
         """
@@ -100,8 +105,8 @@ class LayerSumMethod:
             self.__calculateSigma()
             self.__countSettlement()
         else:
-            self.__calculateSigma_2()
-            self.__countSettlement_2()
+            self.__calculateSigma_2_v2()
+            self.__countSettlement_2_v2()
 
     def __calculateSigma(self):
         """
@@ -190,6 +195,7 @@ class LayerSumMethod:
                 self.settlement += beta * hi * ((sigma_zp - 0.2 * sigma_zg) / E + 0.2 * sigma_zg / Ee)
                 z_step -= hi
 
+
     """
     Для расчета по СП-2016
     """
@@ -216,11 +222,11 @@ class LayerSumMethod:
             FL = self.plate.change["FL"]
 
             if z_now >= FL:  # Напряжение выше и на отметки фундамента остается без изменения
-                self.dataZ[z_now] = [i, sigma_zg, Force, sigma_zg_0, 1]
+                self.dataZ[float(z_now)] = [i, sigma_zg, Force, sigma_zg_0, 1]
             else:
                 eps = 2 * (FL - z_now) / self.plate.change["width"]
                 alpha = self.interpol_alpha(eps, nu, type_found=self.type_found)
-                self.dataZ[z_now] = [i, sigma_zg, Force * alpha, sigma_zg_0 * alpha, alpha]
+                self.dataZ[float(z_now)] = [i, sigma_zg, Force * alpha, sigma_zg_0 * alpha, alpha]
 
 
         self.dataZ = {}
@@ -243,7 +249,7 @@ class LayerSumMethod:
                 sigma_zg_0 = sigma_zg  # Напряжение грунта выше подошвы фундамента
 
             if z_step == NL:
-                self.dataZ[z_step] = [i, sigma_zg, Force, sigma_zg_0, 1]
+                self.dataZ[float(z_step)] = [i, sigma_zg, Force, sigma_zg_0, 1]
                 z_step = z_step - self.rd(self.step)
 
             while z_step > z_bot:
@@ -256,7 +262,7 @@ class LayerSumMethod:
 
                 record_sigma(z_step)
 
-                if self.check_2(z_step):
+                if self.check_2(float(z_step)):
                     return self.dataZ
 
                 z_step = z_step - self.rd(self.step)
@@ -267,7 +273,185 @@ class LayerSumMethod:
 
             record_sigma(self.rd(z_bot))
 
-            if self.check_2(z_bot, last_key=True):
+            if self.check_2(float(z_bot), last_key=True):
+                return self.dataZ
+
+        return self.dataZ
+
+
+    def __calculateSigma_2_v2(self):
+        """
+        :return: self.dataZ
+        Расчет по SP=2
+        """
+        def add_stress_for_sigma_zg(step_now=self.step):
+            nonlocal z_step, sigma_zg
+
+            step_now = Decimal(str(step_now))
+
+            if len(water) != 0 and water[0] >= z_step >= water[1]:
+                sigma_zg += step_now * (gamma - 10)
+            else:
+                sigma_zg += step_now * gamma
+
+        def record_sigma(z_now):
+            """
+            Процедура
+                Добавить напряжения, если z_now ниже FL
+            """
+            nonlocal sigma_zg, sigma_zg_0
+
+            nu = self.plate.change["length"] / self.plate.change["width"]
+            FL = Decimal(str(self.plate.change["FL"]))
+
+            if z_now >= FL:  # Напряжение выше и на отметки фундамента остается без изменения
+                self.dataZ[float(z_now)] = [i, float(sigma_zg), float(Force), float(sigma_zg_0), 1]
+            else:
+                eps = 2 * (FL - z_now) / Decimal(str(self.plate.change["width"]))
+                alpha = Decimal(str(self.interpol_alpha(float(eps), nu, type_found=self.type_found)))
+                self.dataZ[float(z_now)] = [i, float(sigma_zg), float(Force * alpha), float(sigma_zg_0 * alpha), float(alpha)]
+
+
+        self.dataZ = {}
+        self.output = None
+        self.step = Decimal(str(self.step))
+
+        NL = Decimal(str(self.borehole.change[0][0].change["Top"]))
+        sigma_zg = Decimal('0')   # Напряжение от веса грунта, изменяется на каждой итерации
+        sigma_zg_0 = Decimal('0')    # Напряжение от веса грунта на отметке фундамента, изменяется пока z < FL
+        Force = Decimal(str(self.load.change["load"]))
+        nu = self.plate.change["length"]/self.plate.change["width"]
+        FL = Decimal(str(self.plate.change["FL"]))
+
+        for i, (soil, mat) in self.borehole:
+            z_top = Decimal(str(self.rd(soil.change["Top"])))    # верхняя отметка слоя
+            z_bot = Decimal(str(self.rd(soil.change["Bot"]))) # нижняя отметка слоя
+
+            z_step = Decimal(str(self.rd(soil.change["Top"])))    # отметка в текущий момент
+            gamma = Decimal(str(mat.change["gamma"]))
+            water = soil.change["Water"]
+
+            if z_step >= FL:  # Напряжение выше и на отметки фундамента остается без изменения
+                sigma_zg_0 = sigma_zg  # Напряжение грунта выше подошвы фундамента
+
+            if z_step == NL:
+                self.dataZ[float(z_step)] = [i, float(sigma_zg), float(Force), float(sigma_zg_0), 1]
+                z_step -= self.step
+
+            while z_step > z_bot:
+                """
+                выполняется с шагом self.step
+                """
+                add_stress_for_sigma_zg()
+                if z_step >= FL:  # Напряжение выше и на отметки фундамента остается без изменения
+                    sigma_zg_0 = sigma_zg  # Напряжение грунта выше подошвы фундамента
+
+                record_sigma(z_step)
+
+                if self.check_2(float(z_step)):
+                    return self.dataZ
+
+                z_step -= self.step
+
+            add_stress_for_sigma_zg((z_step + self.step) - z_bot)
+            if z_step >= FL:  # Напряжение выше и на отметки фундамента остается без изменения
+                sigma_zg_0 = sigma_zg  # Напряжение грунта выше подошвы фундамента
+
+            record_sigma(self.rd(z_bot))
+
+            if self.check_2(float(z_bot), last_key=True):
+                return self.dataZ
+
+        return self.dataZ
+
+
+    def __calculateSigma_2_v3(self):
+        """
+        :return: self.dataZ
+        Расчет по SP=2
+        """
+        def add_stress_for_sigma_zg(step_now=self.step):
+            nonlocal z_step, sigma_zg
+
+            step_now = Decimal(str(step_now))
+
+            if len(water) != 0 and water[0] >= z_step >= water[1]:
+                sigma_zg += step_now * (gamma - 10)
+            else:
+                sigma_zg += step_now * gamma
+
+        def record_sigma(z_now):
+            """
+            Процедура
+                Добавить напряжения, если z_now ниже FL
+            """
+            nonlocal sigma_zg, sigma_zg_0
+
+            nu = self.plate.change["length"] / self.plate.change["width"]
+            FL = Decimal(str(self.plate.change["FL"]))
+
+            eps = 2 * (FL - z_now) / Decimal(str(self.plate.change["width"]))
+            alpha = Decimal(str(self.interpol_alpha(float(eps), nu, type_found=self.type_found)))
+            self.dataZ[float(z_now)] = [i, float(sigma_zg), float(Force * alpha), float(sigma_zg_0 * alpha), float(alpha)]
+
+
+        self.dataZ = {}
+        self.output = None
+        self.step = Decimal(str(self.step))
+
+        NL = Decimal(str(self.borehole.change[0][0].change["Top"]))
+        DL = Decimal(str(self.DL))
+        FL = Decimal(str(self.plate.change["FL"]))
+
+        gamma_DL = Decimal(str(self.gamma_DL))
+
+        Force = Decimal(str(self.load.change["load"]))
+        nu = self.plate.change["length"] / self.plate.change["width"]
+
+        if DL<NL:
+            flag_DL = True
+        else:
+            flag_DL = False
+
+        if flag_DL:
+            sigma_zg = gamma_DL * (DL - FL) # Напряжение от веса грунта, увеличивается пока z < FL
+            sigma_zg_0 = gamma_DL * (DL - FL) # Напряжение от веса грунта на отметке фундамента, умножается на alpha пока z < FL
+        else:
+            sigma_zg = gamma_DL * (NL - FL)
+            sigma_zg_0 = gamma_DL * (NL - FL)
+
+        for i, (soil, mat) in self.borehole:
+            z_top = Decimal(str(self.rd(soil.change["Top"])))    # верхняя отметка слоя
+            z_bot = Decimal(str(self.rd(soil.change["Bot"]))) # нижняя отметка слоя
+
+            z_step = Decimal(str(self.rd(soil.change["Top"])))    # отметка в текущий момент
+            gamma = Decimal(str(mat.change["gamma"]))
+            water = soil.change["Water"]
+
+            if z_step >= FL:  # Напряжение выше и на отметки фундамента остается без изменения
+                sigma_zg_0 = sigma_zg  # Напряжение грунта выше подошвы фундамента
+
+            if z_step == NL:
+                self.dataZ[float(z_step)] = [i, float(sigma_zg), float(Force), float(sigma_zg_0), 1]
+                z_step -= self.step
+
+            while FL > z_step and z_step > z_bot:
+                """
+                выполняется с шагом self.step
+                """
+                add_stress_for_sigma_zg()
+                record_sigma(z_step)
+
+                if self.check_2(float(z_step)):
+                    return self.dataZ
+
+                z_step -= self.step
+
+            add_stress_for_sigma_zg((z_step + self.step) - z_bot)
+
+            record_sigma(self.rd(z_bot))
+
+            if self.check_2(float(z_bot), last_key=True):
                 return self.dataZ
 
         return self.dataZ
@@ -312,6 +496,36 @@ class LayerSumMethod:
                 Ee = 5 * E
                 self.settlement += beta * hi * ((sigma_zp - sigm_zy)/E + sigm_zy/Ee)
                 z_step -= hi
+
+
+    def __countSettlement_2_v2(self):
+        """
+        Определение велечины осадки
+        для SP=2
+        sigma_zy - напряжение от  веса выкопанного грунта умноженного на alpha
+        :return:
+        """
+        FL = Decimal(str(self.plate.change["FL"]))
+        z_step = FL
+        beta = Decimal(str(0.8))
+        self.settlement = Decimal(0)
+
+        for z, (nSoil, sigma_zg, sigma_zp, sigma_zy, alpha) in self.dataZ.items():
+            z = Decimal(str(z))
+
+            if z <= FL:
+                E = Decimal(str(self.borehole.change[nSoil][1].change["E"]))
+                sigma_zg = Decimal(str(sigma_zg))
+                sigma_zp = Decimal(str(sigma_zp))
+                sigma_zy = Decimal(str(sigma_zy))
+
+                Ee = 5 * E
+                hi = z_step - z
+
+                self.settlement += beta * hi * ((sigma_zp - sigma_zy)/E + sigma_zy/Ee)
+                z_step -= hi
+
+
 
     def comparison(self):
         """

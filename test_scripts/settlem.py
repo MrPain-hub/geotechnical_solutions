@@ -22,7 +22,7 @@ for i in range(counts_ige):
     dict_soil[f"soil{i}"] = f"ige{i+1}"
 
 E = [25e6, 25e6, 25e6]
-gamma = [18e3, 18e3, 18e3]
+gamma = [18e3, 19e3, 20e3]
 z_soils = [50, 30, 20, 0]
 water_soils = [False, False, False]
 
@@ -54,6 +54,8 @@ for i, soil in enumerate(dict_soil):
                           )
 Borehole_1.change[0][0].change["Top"] = z_soils[0]
 
+print(Borehole_1.change[2][1].change['gamma'], Borehole_1.change[0][1].change['gamma'])
+
 """
 Создание нагрузки и плиты
 """
@@ -68,7 +70,7 @@ Mps = LayerSumMethod(Borehole_1,
                      plate_1,
                      load_1,
                      type_found="ленточный",
-                     path_alpha = path_data+r"alpha.txt"
+                     path_alpha = path_data+r"alpha.txt",
                      )
 Mps.calculation()
 
