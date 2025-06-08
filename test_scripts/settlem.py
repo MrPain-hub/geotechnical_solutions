@@ -54,8 +54,6 @@ for i, soil in enumerate(dict_soil):
                           )
 Borehole_1.change[0][0].change["Top"] = z_soils[0]
 
-print(Borehole_1.change[2][1].change['gamma'], Borehole_1.change[0][1].change['gamma'])
-
 """
 Создание нагрузки и плиты
 """
@@ -70,7 +68,7 @@ Mps = LayerSumMethod(Borehole_1,
                      plate_1,
                      load_1,
                      type_found="ленточный",
-                     path_alpha = path_data+r"alpha.txt",
+                     path_alpha = path_data+r"alpha.txt"
                      )
 Mps.calculation()
 
