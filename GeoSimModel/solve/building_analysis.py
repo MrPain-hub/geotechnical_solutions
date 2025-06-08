@@ -105,7 +105,7 @@ class LayerSumMethod:
             self.__calculateSigma()
             self.__countSettlement()
         else:
-            self.__calculateSigma_2_v2()
+            self.__calculateSigma_2_v3()
             self.__countSettlement_2_v2()
 
     def __calculateSigma(self):
@@ -373,12 +373,14 @@ class LayerSumMethod:
         def add_stress_for_sigma_zg(step_now=self.step):
             nonlocal z_step, sigma_zg
 
-            step_now = Decimal(str(step_now))
+            if z_step < FL:
 
-            if len(water) != 0 and water[0] >= z_step >= water[1]:
-                sigma_zg += step_now * (gamma - 10)
-            else:
-                sigma_zg += step_now * gamma
+                step_now = Decimal(str(step_now))
+
+                if len(water) != 0 and water[0] >= z_step >= water[1]:
+                    sigma_zg += step_now * (gamma - 10)
+                else:
+                    sigma_zg += step_now * gamma
 
         def record_sigma(z_now):
             """
@@ -390,9 +392,13 @@ class LayerSumMethod:
             nu = self.plate.change["length"] / self.plate.change["width"]
             FL = Decimal(str(self.plate.change["FL"]))
 
-            eps = 2 * (FL - z_now) / Decimal(str(self.plate.change["width"]))
-            alpha = Decimal(str(self.interpol_alpha(float(eps), nu, type_found=self.type_found)))
-            self.dataZ[float(z_now)] = [i, float(sigma_zg), float(Force * alpha), float(sigma_zg_0 * alpha), float(alpha)]
+            if z_now >= FL:  # Напряжение выше и на отметки фундамента остается без изменения
+                sigma_zg_0 = sigma_zg
+                self.dataZ[float(z_now)] = [i, float(sigma_zg), float(Force), float(sigma_zg_0), 1]
+            else:
+                eps = 2 * (FL - z_now) / Decimal(str(self.plate.change["width"]))
+                alpha = Decimal(str(self.interpol_alpha(float(eps), nu, type_found=self.type_found)))
+                self.dataZ[float(z_now)] = [i, float(sigma_zg), float(Force * alpha), float(sigma_zg_0 * alpha), float(alpha)]
 
 
         self.dataZ = {}
@@ -405,10 +411,10 @@ class LayerSumMethod:
 
         gamma_DL = Decimal(str(self.gamma_DL))
 
-        Force = Decimal(str(self.load.change["load"]))
+        Force = Decimal(str(self.load.change["load"])) + gamma_DL * (DL - FL)
         nu = self.plate.change["length"] / self.plate.change["width"]
 
-        if DL<NL:
+        if DL<=NL:
             flag_DL = True
         else:
             flag_DL = False
@@ -428,14 +434,14 @@ class LayerSumMethod:
             gamma = Decimal(str(mat.change["gamma"]))
             water = soil.change["Water"]
 
-            if z_step >= FL:  # Напряжение выше и на отметки фундамента остается без изменения
+            if z_step > FL:  # Напряжение выше и на отметки фундамента остается без изменения
                 sigma_zg_0 = sigma_zg  # Напряжение грунта выше подошвы фундамента
 
             if z_step == NL:
                 self.dataZ[float(z_step)] = [i, float(sigma_zg), float(Force), float(sigma_zg_0), 1]
                 z_step -= self.step
 
-            while FL > z_step and z_step > z_bot:
+            while z_step > z_bot:
                 """
                 выполняется с шагом self.step
                 """
@@ -448,7 +454,6 @@ class LayerSumMethod:
                 z_step -= self.step
 
             add_stress_for_sigma_zg((z_step + self.step) - z_bot)
-
             record_sigma(self.rd(z_bot))
 
             if self.check_2(float(z_bot), last_key=True):
@@ -482,7 +487,7 @@ class LayerSumMethod:
         """
         Определение велечины осадки
         для SP=2
-        sigma_zy - напряжение от  веса выкопанного грунта умноженного на alpha
+        sigma_zy - напряжение от веса выкопанного грунта умноженного на alpha
         :return:
         """
         FL = self.plate.change["FL"]
