@@ -378,7 +378,7 @@ class LayerSumMethod:
                 step_now = Decimal(str(step_now))
 
                 if len(water) != 0 and water[0] >= z_step >= water[1]:
-                    sigma_zg += step_now * (gamma - 10)
+                    sigma_zg += step_now * (gamma - 9800)
                 else:
                     sigma_zg += step_now * gamma
 
