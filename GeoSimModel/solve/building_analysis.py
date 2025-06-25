@@ -1,6 +1,6 @@
-#from geotechnical_solutions.GeoSimModel import path_data
 import numpy as np
 from decimal import Decimal
+
 
 
 class LayerSumMethod:
@@ -467,8 +467,19 @@ class LayerSumMethod:
         :param key: абсолютная отметка
         :return:    True or False
         """
-        self.key_bot = True
+        H = self.plate.change["FL"] - float(key)
+        width = self.plate.change["width"]
+        """
+        Проверка на минимальную ГСТ
+        """
+        if width <= 10 and  H < width/2:
+            return False
+        if 10 < width and width <= 60 and H < (4 + .1*width):
+            return False
+        if 60 < width and H < 10:
+            return False
 
+        self.key_bot = True
         nSoil, sigma_zg, sigma_zp, sigma_zy, alpha = self.dataZ[key]
         E = self.borehole.change[nSoil][1].change["E"]
 
@@ -495,6 +506,7 @@ class LayerSumMethod:
         beta = 0.8
         self.settlement = 0
         for z, (nSoil, sigma_zg, sigma_zp, sigm_zy, alpha) in self.dataZ.items():
+
             if z <= FL:
                 hi = z_step - z
                 E = self.borehole.change[nSoil][1].change["E"]
@@ -531,7 +543,6 @@ class LayerSumMethod:
                 z_step -= hi
 
 
-
     def comparison(self):
         """
         Перепроверка результатов
@@ -540,6 +551,8 @@ class LayerSumMethod:
         if self.SP == 1:
 
             for z, item in self.dataZ.items():
+                z = float(z)
+
                 if 0.2*item[1] >= item[2]:
                     E = self.borehole.change[item[0]][1].change["E"]
                     if E <= 10e6:
@@ -549,6 +562,8 @@ class LayerSumMethod:
 
         else:   # СП 2016
             for z, item in self.dataZ.items():
+                z = float(z)
+
                 if 0.5 * item[1] >= item[2]:
                     E = self.borehole.change[item[0]][1].change["E"]
                     if E <= 7e6:

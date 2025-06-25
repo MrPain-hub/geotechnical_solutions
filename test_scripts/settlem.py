@@ -1,4 +1,19 @@
-from geotechnical_solutions.GeoSimModel.create_models.geology_models import *
+"""
+Необходимо добавлять путь к библиотеки только в jupyter
+"""
+from os.path import dirname, abspath
+path_library = dirname(abspath(".."))
+
+try:
+    from geotechnical_solutions.GeoSimModel.create_models.geology_models import *    # Путь к классу для создания геологии
+
+except ModuleNotFoundError as ex:
+    import sys
+    sys.path.append(path_library)
+    print("Добавление пути к библиотеки geotechnical_solutions")
+    from geotechnical_solutions.GeoSimModel.create_models.geology_models import *
+
+
 from geotechnical_solutions.GeoSimModel.create_models.foundation_models import *
 
 from geotechnical_solutions.GeoSimModel.solve.building_analysis import *
@@ -82,8 +97,6 @@ sigx = []
 sigy = []
 sigz = []
 alpha_list = []
-
-print(result_dict[50])
 
 for key, item in result_dict.items():
     _, x, y, z, alpha = item

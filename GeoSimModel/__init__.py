@@ -7,4 +7,5 @@ from . import visualization
 # Получаем абсолютный путь к текущему файлу
 current_file_path = os.path.abspath(__file__)
 
+#path_data = os.path.join(os.path.dirname(current_file_path),"data")
 path_data = os.path.dirname(current_file_path) + "/data/"
